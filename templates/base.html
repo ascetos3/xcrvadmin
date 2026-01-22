@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Xcrover Admin{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/license-detail.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    {% if session.get('admin_logged_in') %}
+    <nav class="navbar">
+        <div class="navbar-brand">🎮 Xcrover Admin</div>
+        <div class="navbar-menu">
+            <a href="{{ url_for('dashboard') }}" class="nav-link">📊 Dashboard</a>
+            <a href="{{ url_for('licenses') }}" class="nav-link">🎫 Lisanslar</a>
+            <a href="{{ url_for('premium_games') }}" class="nav-link">⭐ Premium Oyunlar</a>
+            <a href="{{ url_for('denuvo_games') }}" class="nav-link">🔒 Denuvo Oyunlar</a>
+            <a href="{{ url_for('manual_games') }}" class="nav-link">📦 Manuel Oyunlar</a>
+            <a href="{{ url_for('bypass_games') }}" class="nav-link">🛡️ Bypass Paketleri</a>
+            <a href="{{ url_for('announcements') }}" class="nav-link">📢 Duyurular</a>
+            <a href="{{ url_for('updates') }}" class="nav-link">🔄 Guncellemeler</a>
+            <a href="{{ url_for('support_tickets') }}" class="nav-link">💬 Destek</a>
+            <a href="{{ url_for('admin_version') }}" class="nav-link">🔢 Sürüm</a>
+            <a href="{{ url_for('resellers') }}" class="nav-link">👥 Bayiler</a>
+            <a href="{{ url_for('logs') }}" class="nav-link">📋 Loglar</a>
+        </div>
+        <div class="navbar-user">
+            <div class="user-avatar">{{ session.get('admin_username', 'A')[0].upper() }}</div>
+            <span>{{ session.get('admin_username', 'Admin') }}</span>
+            <a href="{{ url_for('logout') }}" class="btn btn-sm btn-danger">Cikis</a>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <div class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+        
+        {% block content %}{% endblock %}
+    </div>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Güncellemeler - Xcrover Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔄 Uygulama Güncellemeleri</h1>
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('active')">
+        ➕ Yeni Güncelleme Ekle
+    </button>
+</div>
+
+<div class="search-section">
+    <input type="text" id="updateSearch" placeholder="🔍 Güncelleme ara..." onkeyup="handleSearch()">
+</div>
+
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Versiyon</th>
+                <th>Zorunlu</th>
+                <th>Changelog</th>
+                <th>İndirme</th>
+                <th>Tarih</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody id="updatesTableBody">
+            {% if updates %}
+                {% for update in updates %}
+                <tr>
+                    <td><strong><code>v{{ update.version }}</code></strong></td>
+                    <td>
+                        {% if update.isMandatory %}
+                            <span class="badge badge-danger">⚠️ Zorunlu</span>
+                        {% else %}
+                            <span class="badge badge-info">ℹ️ Opsiyonel</span>
+                        {% endif %}
+                    </td>
+                    <td><small>{{ update.changelog[:60] if update.changelog else '-' }}{{ '...' if update.changelog and update.changelog|length > 60 else '' }}</small></td>
+                    <td><a href="{{ update.downloadUrl }}" target="_blank" class="link-primary">🔗 İndir</a></td>
+                    <td>{{ update.createdAt.strftime('%d.%m.%Y') if update.createdAt else '-' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUpdate('{{ update._id }}')">
+                            🗑 Sil
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 20px; opacity: 0.6;">
+                        Henüz güncelleme eklenmemiş
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3>Yeni Güncelleme Ekle</h3>
+            <button class="modal-close" onclick="document.getElementById('addModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Versiyon</label>
+                <input type="text" id="version" placeholder="Örn: 1.5.0" required>
+            </div>
+            <div class="form-group">
+                <label>İndirme Linki</label>
+                <input type="url" id="downloadUrl" placeholder="https://..." required>
+            </div>
+            <div class="form-group">
+                <label>Değişiklik Notları (Changelog)</label>
+                <textarea id="changelog" rows="6" placeholder="- Yeni özellik eklendi&#10;- Bug düzeltmeleri&#10;- Performans iyileştirmeleri"></textarea>
+            </div>
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="isMandatory">
+                    Zorunlu güncelleme
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('addModal').classList.remove('active')">İptal</button>
+            <button class="btn btn-primary" onclick="addUpdate()">Ekle</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleSearch() {
+    const searchValue = document.getElementById('updateSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#updatesTableBody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+}
+
+async function addUpdate() {
+    const version = document.getElementById('version').value.trim();
+    const downloadUrl = document.getElementById('downloadUrl').value.trim();
+    const changelog = document.getElementById('changelog').value.trim();
+    const isMandatory = document.getElementById('isMandatory').checked;
+    
+    if (!version || !downloadUrl) {
+        alert('Versiyon ve indirme linki gerekli!');
+        return;
+    }
+    
+    try {
+        const res = await fetch('/updates/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                version: version,
+                downloadUrl: downloadUrl,
+                changelog: changelog,
+                isMandatory: isMandatory
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Güncelleme eklendi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası: ' + e);
+    }
+}
+
+async function deleteUpdate(updateId) {
+    if (!confirm('Bu güncellemeyi silmek istediğinizden emin misiniz?')) return;
+    
+    try {
+        const res = await fetch(`/updates/delete/${updateId}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Güncelleme silindi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası');
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Sürüm Yönetimi - Xcrover Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔢 Sürüm Yönetimi</h1>
+    <p>Xcrover ve Xcrover Admin uygulamalarının gerekli sürümünü belirleyin. Eski sürümlü uygulamalar açılmayacak ve güncelleme isteyecektir.</p>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3>Aktif Sürüm</h3>
+    </div>
+    <div class="card-body">
+        <div style="text-align: center; padding: 30px;">
+            <div style="font-size: 4rem; font-weight: bold; color: var(--purple); margin-bottom: 20px;">
+                v{{ current_version }}
+            </div>
+            <p style="color: var(--text-secondary); margin-bottom: 30px;">
+                Bu sürümden daha eski client uygulamaları açılmayacak ve kullanıcılardan güncelleme yapmaları istenecektir.
+            </p>
+        </div>
+
+        <form method="POST" style="max-width: 500px; margin: 0 auto;">
+            <div class="form-group">
+                <label for="version">Yeni Sürüm Numarası</label>
+                <input type="text" 
+                       id="version" 
+                       name="version" 
+                       class="form-control" 
+                       placeholder="örn: 0.1.0 veya 1.2.3" 
+                       value="{{ current_version }}"
+                       pattern="[0-9]+\.[0-9]+\.[0-9]+"
+                       title="Sürüm formatı: x.y.z (örn: 0.1.0)"
+                       required>
+                <small style="color: var(--text-secondary); display: block; margin-top: 8px;">
+                    ⚠️ Format: <code>x.y.z</code> şeklinde olmalı (örn: 0.1.0, 1.2.3)
+                </small>
+            </div>
+            
+            <div style="background: rgba(251, 191, 36, 0.1); padding: 15px; border-radius: 8px; border-left: 4px solid #fbbf24; margin-bottom: 20px;">
+                <strong>⚠️ DİKKAT</strong>
+                <p style="margin: 10px 0 0 0; color: var(--text-secondary);">
+                    Sürümü değiştirdiğinizde, eski sürümlü tüm kullanıcılar uygulamayı açamayacak ve güncelleme yapmaları gerekecektir. 
+                    Yeni bir sürüm yayınladıktan sonra bu değeri güncelleyin.
+                </p>
+            </div>
+
+            <button type="submit" class="btn btn-primary" style="width: 100%;">
+                ✅ Sürümü Güncelle
+            </button>
+        </form>
+    </div>
+</div>
+
+<div class="card" style="margin-top: 20px;">
+    <div class="card-header">
+        <h3>📋 Sürüm Kontrol Bilgisi</h3>
+    </div>
+    <div class="card-body">
+        <p><strong>API Endpoint:</strong> <code>GET /api/version</code></p>
+        <p><strong>Yanıt Formatı:</strong></p>
+        <pre style="background: var(--bg-primary); padding: 15px; border-radius: 8px; overflow-x: auto;"><code>{
+  "success": true,
+  "version": "{{ current_version }}"
+}</code></pre>
+        <p style="margin-top: 15px; color: var(--text-secondary);">
+            Xcrover ve Xcrover Admin uygulamaları başlangıçta bu endpoint'i kontrol eder. 
+            Yerel sürüm numaraları sunucudaki sürümden düşükse uygulama açılmaz ve güncelleme penceresi gösterilir.
+        </p>
+    </div>
+</div>
+{% endblock %}

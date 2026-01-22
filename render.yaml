@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: xcrover-admin
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: USE_MONGODB_DRIVER
+        value: true
+      - key: MONGODB_URI
+        value: mongodb+srv://mustafaylmaz3566_db_user:mustafa65@cluster0.x4l2qe7.mongodb.net/xcrover
+      - key: SECRET_KEY
+        value: xcrover-super-secret-key-2025-render-production-random-string

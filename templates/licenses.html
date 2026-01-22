@@ -1,0 +1,437 @@
+{% extends "base.html" %}
+
+{% block title %}Lisans Yonetimi{% endblock %}
+
+{% block content %}
+<div class="content-section">
+    <div class="section-header">
+        <h2 class="section-title">Lisans Yonetimi</h2>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Yeni Lisans</button>
+    </div>
+    
+    <div class="search-section" style="margin-bottom: 20px;">
+        <input type="text" id="licenseSearch" placeholder="🔍 Lisans arama (anahtar, kullanici, reseller...)" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary);">
+    </div>
+    
+    {% if licenses %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Lisans Anahtari</th>
+                <th>Kullanici</th>
+                <th>Tur</th>
+                <th>Olusturan</th>
+                <th>Durum</th>
+                <th>Islemler</th>
+            </tr>
+        </thead>
+        <tbody id="licenseTableBody">
+            {% for lic in licenses %}
+            <tr>
+                <td><code class="license-key">{{ lic.licenseKey or lic.key }}</code></td>
+                <td>{{ lic.username or '-' }}</td>
+                <td><span class="badge badge-{{ lic.type or 'basic' }}">{{ (lic.type or 'basic')|upper }}</span></td>
+                <td><small style="opacity:0.7;">{{ lic.createdBy or 'System' }}</small></td>
+                <td>
+                    {% if lic.isDestroyed %}
+                        <span class="badge badge-destroyed">Imha</span>
+                    {% elif lic.isActive %}
+                        <span class="badge badge-success">Aktif</span>
+                    {% else %}
+                        <span class="badge badge-danger">Pasif</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+                        {% if not lic.isDestroyed and lic.isActive %}
+                        <button class="btn btn-sm btn-danger" onclick="toggleLicense('{{ lic.licenseKey or lic.key }}')" title="Pasif Yap">✖</button>
+                        {% endif %}
+                        {% if not lic.isDestroyed and not lic.isActive %}
+                        <button class="btn btn-sm btn-success" onclick="toggleLicense('{{ lic.licenseKey or lic.key }}')" title="Aktif Yap">✔</button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-info" onclick="copyLicense('{{ lic.licenseKey or lic.key }}')" title="Kopyala">📋</button>
+                        <button class="btn btn-sm btn-primary" onclick="openDetailModal('{{ lic.licenseKey or lic.key }}')" title="Detay">🔍</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteLicense('{{ lic.licenseKey or lic.key }}')" title="Sil">🗑</button>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <h3>Henuz lisans yok</h3>
+        <p>Yeni lisans eklemek icin yukardaki butona tiklayin</p>
+    </div>
+    {% endif %}
+</div>
+
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Yeni Lisans Ekle</h3>
+            <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addForm">
+                <div class="form-group">
+                    <label class="form-label">Kullanici Adi</label>
+                    <input type="text" name="username" class="form-control" placeholder="Opsiyonel">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Lisans Turu</label>
+                    <select name="type" class="form-control">
+                        <option value="basic">Basic</option>
+                        <option value="premium">Premium</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Sure Tipi</label>
+                    <div style="display:flex;gap:10px;margin-bottom:10px;">
+                        <label style="display:flex;align-items:center;gap:5px;">
+                            <input type="radio" name="durationOption" value="unlimited" checked onchange="toggleCustomDays()">
+                            <span>Sinirsiz</span>
+                        </label>
+                        <label style="display:flex;align-items:center;gap:5px;">
+                            <input type="radio" name="durationOption" value="custom" onchange="toggleCustomDays()">
+                            <span>Ozel</span>
+                        </label>
+                    </div>
+                    <input type="number" name="expiresDays" id="customDaysInput" class="form-control" placeholder="Gun sayisi" disabled>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Notlar</label>
+                    <textarea name="notes" class="form-textarea" placeholder="Opsiyonel"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddModal()">Iptal</button>
+            <button class="btn btn-primary" onclick="submitAdd()">Ekle</button>
+        </div>
+    </div>
+</div>
+
+<!-- License Detail Modal -->
+<div id="detailModal" class="modal">
+    <div class="modal-backdrop" onclick="closeDetailModal()"></div>
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3 class="modal-title">Lisans Detayi</h3>
+            <button class="modal-close" onclick="closeDetailModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="detailBody">
+            Yukleniyor...
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeDetailModal()">Kapat</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allLicenses = [];
+
+// Initialize with server data
+document.addEventListener('DOMContentLoaded', () => {
+    const rows = document.querySelectorAll('#licenseTableBody tr');
+    allLicenses = Array.from(rows).map(row => ({
+        key: row.querySelector('.license-key').textContent.trim(),
+        username: row.cells[1].textContent.trim(),
+        type: row.cells[2].textContent.trim(),
+        createdBy: row.cells[3].textContent.trim(),
+        html: row.outerHTML
+    }));
+    
+    // Search functionality
+    document.getElementById('licenseSearch').addEventListener('input', handleSearch);
+});
+
+function handleSearch(e) {
+    const query = e.target.value.toLowerCase();
+    const tbody = document.getElementById('licenseTableBody');
+    
+    if (!query) {
+        // Show all
+        tbody.innerHTML = allLicenses.map(l => l.html).join('');
+        return;
+    }
+    
+    const filtered = allLicenses.filter(lic => 
+        lic.key.toLowerCase().includes(query) ||
+        lic.username.toLowerCase().includes(query) ||
+        lic.type.toLowerCase().includes(query) ||
+        lic.createdBy.toLowerCase().includes(query)
+    );
+    
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;opacity:0.6;">Arama sonucu bulunamadi</td></tr>';
+    } else {
+        tbody.innerHTML = filtered.map(l => l.html).join('');
+    }
+}
+
+function toggleCustomDays() {
+    const customInput = document.getElementById('customDaysInput');
+    const isCustom = document.querySelector('input[name="durationOption"]:checked').value === 'custom';
+    customInput.disabled = !isCustom;
+}
+
+function openAddModal() {
+    document.getElementById('addModal').classList.add('active');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+}
+
+async function submitAdd() {
+    const form = document.getElementById('addForm');
+    const formData = new FormData(form);
+    
+    // Duration handling
+    const durationOption = document.querySelector('input[name="durationOption"]:checked').value;
+    if (durationOption === 'unlimited') {
+        formData.delete('expiresDays');
+    }
+    
+    try {
+        const res = await fetch('/licenses/add', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Lisans eklendi: ' + formatLicenseKey(data.licenseKey));
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('Istek hatasi: ' + e);
+    }
+}
+
+async function toggleLicense(key) {
+    if (!confirm('Durumu degistir?')) return;
+    
+    try {
+        const res = await fetch(`/licenses/toggle/${key}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+
+async function deleteLicense(key) {
+    if (!confirm('Silmek istediginizden emin misiniz?')) return;
+    
+    try {
+        const res = await fetch(`/licenses/delete/${key}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Hata');
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+
+function formatLicenseKey(key) {
+    return key.match(/.{1,4}/g).join('-');
+}
+
+async function copyLicense(key) {
+    try {
+        await navigator.clipboard.writeText(key);
+        alert('Lisans kopyalandi!');
+    } catch (e) {
+        // Fallback
+        const textArea = document.createElement('textarea');
+        textArea.value = key;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        alert('Lisans kopyalandi!');
+    }
+}
+
+async function openDetailModal(key) {
+    const modal = document.getElementById('detailModal');
+    const body = document.getElementById('detailBody');
+    
+    modal.classList.add('active');
+    body.innerHTML = 'Yukleniyor...';
+    
+    try {
+        const res = await fetch(`/licenses/detail/${key}`);
+        const data = await res.json();
+        
+        if (data.success) {
+            const lic = data.license;
+            body.innerHTML = `
+                <div class="license-detail-container">
+                    <div class="detail-section">
+                        <h4>Lisans Anahtari</h4>
+                        <div class="key-display">
+                            <code>${formatLicenseKey(lic.licenseKey)}</code>
+                            <button class="btn btn-sm btn-info" onclick="copyLicense('${lic.licenseKey}')">📋 Kopyala</button>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>Kullanici Bilgileri</h4>
+                        <div class="info-grid">
+                            <div><strong>Kullanici:</strong> ${lic.username || 'Belirtilmemis'}</div>
+                            <div><strong>Tur:</strong> <span class="badge badge-${lic.type}">${lic.type.toUpperCase()}</span></div>
+                            <div><strong>Olusturan:</strong> ${lic.createdBy || 'System'}</div>
+                            <div><strong>Durum:</strong> <span class="badge badge-${lic.isActive ? 'success' : 'danger'}">${lic.isActive ? 'Aktif' : 'Pasif'}</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>Tarih Bilgileri</h4>
+                        <div class="info-grid">
+                            <div><strong>Olusturma:</strong> ${formatDate(lic.createdAt)}</div>
+                            <div><strong>Son Kullanim:</strong> ${lic.expiresAt ? formatDate(lic.expiresAt) : 'Suresiz'}</div>
+                            <div><strong>Son Giris:</strong> ${lic.lastUsed ? formatDate(lic.lastUsed) : '-'}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>Istatistikler</h4>
+                        <div class="info-grid">
+                            <div><strong>Kullanim Sayisi:</strong> ${lic.usageCount || 0}</div>
+                            <div><strong>HWID:</strong> ${lic.hwid || 'Kayit yok'}</div>
+                            <div><strong>Denuvo:</strong> <span class="badge badge-${lic.denuvoEnabled ? 'success' : 'danger'}">${lic.denuvoEnabled ? 'Aktif' : 'Pasif'}</span></div>
+                        </div>
+                    </div>
+                    
+                    <div class="detail-section">
+                        <h4>Islemler</h4>
+                        <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <button class="btn btn-primary" onclick="addTime('${lic.licenseKey}')">⏰ Sure Ekle</button>
+                            <button class="btn btn-primary" onclick="resetHWID('${lic.licenseKey}')">🔄 HWID Sifirla</button>
+                            <button class="btn btn-${lic.denuvoEnabled ? 'warning' : 'success'}" onclick="toggleDenuvo('${lic.licenseKey}', ${!lic.denuvoEnabled})">${lic.denuvoEnabled ? '🔒 Denuvo Pasif' : '🔓 Denuvo Aktif'}</button>
+                            ${!lic.isDestroyed ? `<button class="btn btn-danger" onclick="destroyLicense('${lic.licenseKey}')">💣 Imha Et</button>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            body.innerHTML = '<div class="alert alert-danger">Lisans bulunamadi</div>';
+        }
+    } catch (e) {
+        body.innerHTML = '<div class="alert alert-danger">Yukleme hatasi</div>';
+    }
+}
+
+function closeDetailModal() {
+    document.getElementById('detailModal').classList.remove('active');
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '-';
+    return d.toLocaleString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+async function addTime(key) {
+    const days = prompt('Kac gun eklensin?', '30');
+    if (!days || isNaN(days)) return;
+    
+    try {
+        const res = await fetch(`/licenses/add-time/${key}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({days: parseInt(days)})
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Sure eklendi!');
+            openDetailModal(key);
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+
+async function resetHWID(key) {
+    if (!confirm('HWID sifirlansin mi?')) return;
+    
+    try {
+        const res = await fetch(`/licenses/reset-hwid/${key}`, {method: 'POST'});
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('HWID sifirlandi!');
+            openDetailModal(key);
+        } else {
+            alert('Hata');
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+
+async function toggleDenuvo(key, enabled) {
+    try {
+        const res = await fetch(`/licenses/toggle-denuvo/${key}`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({enabled})
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Denuvo durumu degisti!');
+            openDetailModal(key);
+        } else {
+            alert('Hata');
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+
+async function destroyLicense(key) {
+    if (!confirm('Bu lisans KALICI olarak imha edilecek. Emin misiniz?')) return;
+    
+    try {
+        const res = await fetch(`/licenses/destroy/${key}`, {method: 'POST'});
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Lisans imha edildi!');
+            closeDetailModal();
+            location.reload();
+        } else {
+            alert('Hata');
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+</script>
+{% endblock %}

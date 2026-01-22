@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Xcrover Admin{% endblock %}
+
+{% block content %}
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon">📄</div>
+        </div>
+        <div class="stat-label">Toplam Lisans</div>
+        <div class="stat-value">{{ stats.total_licenses }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon">✅</div>
+        </div>
+        <div class="stat-label">Aktif Lisans</div>
+        <div class="stat-value">{{ stats.active_licenses }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon">🎮</div>
+        </div>
+        <div class="stat-label">Toplam Oyun</div>
+        <div class="stat-value">{{ stats.total_games }}</div>
+    </div>
+    
+    <div class="stat-card">
+        <div class="stat-header">
+            <div class="stat-icon">💬</div>
+        </div>
+        <div class="stat-label">Acik Talepler</div>
+        <div class="stat-value">{{ stats.open_tickets }}</div>
+    </div>
+</div>
+
+<div class="content-section">
+    <div class="section-header">
+        <h2 class="section-title">Son Lisanslar</h2>
+        <a href="{{ url_for('licenses') }}" class="btn btn-sm btn-secondary">Tumu</a>
+    </div>
+    
+    {% if recent_licenses %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Lisans Anahtari</th>
+                <th>Durum</th>
+                <th>Olusturma</th>
+                <th>Olusturan</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for license in recent_licenses %}
+            <tr>
+                <td><code>{{ license.licenseKey or license.key }}</code></td>
+                <td>
+                    {% if license.isActive %}
+                        <span class="badge badge-success">Aktif</span>
+                    {% else %}
+                        <span class="badge badge-danger">Pasif</span>
+                    {% endif %}
+                </td>
+                <td>{{ license.createdAt|format_datetime }}</td>
+                <td>{{ license.createdBy or 'System' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <p>Henuz lisans yok</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

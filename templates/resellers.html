@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Bayiler{% endblock %}
+
+{% block content %}
+<div class="content-section">
+    <div class="section-header">
+        <h2 class="section-title">Bayi Yonetimi</h2>
+        <button class="btn btn-primary" onclick="openAddModal()">+ Yeni Bayi</button>
+    </div>
+    
+    {% if resellers %}
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Bayi ID</th>
+                <th>Isim</th>
+                <th>Email</th>
+                <th>Lisans Sayisi</th>
+                <th>Aktif Lisans</th>
+                <th>Tarih</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for reseller in resellers %}
+            <tr>
+                <td><code>{{ reseller.resellerId }}</code></td>
+                <td>{{ reseller.name }}</td>
+                <td>{{ reseller.email }}</td>
+                <td>{{ reseller.licenseCount or 0 }}</td>
+                <td>{{ reseller.activeLicenseCount or 0 }}</td>
+                <td>{{ reseller.createdAt|format_datetime }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+        <h3>Bayi yok</h3>
+    </div>
+    {% endif %}
+</div>
+
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Yeni Bayi Ekle</h3>
+            <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addForm">
+                <div class="form-group">
+                    <label class="form-label">Bayi ID</label>
+                    <input type="text" name="resellerId" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Isim</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Email</label>
+                    <input type="email" name="email" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Telefon</label>
+                    <input type="text" name="phone" class="form-control">
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddModal()">Iptal</button>
+            <button class="btn btn-primary" onclick="submitAdd()">Ekle</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddModal() {
+    document.getElementById('addModal').classList.add('active');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+}
+
+async function submitAdd() {
+    const form = document.getElementById('addForm');
+    const formData = new FormData(form);
+    
+    try {
+        const res = await fetch('/resellers/add', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Bayi eklendi');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+</script>
+{% endblock %}

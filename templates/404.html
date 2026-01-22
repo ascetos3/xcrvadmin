@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="empty-state">
+    <div class="empty-state-icon">🔍</div>
+    <h3>404 - Sayfa Bulunamadi</h3>
+    <p>Aradiginiz sayfa mevcut degil.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Ana Sayfaya Don</a>
+</div>
+{% endblock %}

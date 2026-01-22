@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Denuvo Oyunlar - Xcrover Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🔒 Denuvo Oyunlar</h1>
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('active')">
+        ➕ Yeni Denuvo Oyun Ekle
+    </button>
+</div>
+
+<div class="search-section">
+    <input type="text" id="gameSearch" placeholder="🔍 Oyun ara..." onkeyup="handleSearch()">
+</div>
+
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Oyun ID</th>
+                <th>Oyun Adı</th>
+                <th>Eklenme Tarihi</th>
+                <th>Ekleyen</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody id="gamesTableBody">
+            {% if games %}
+                {% for game in games %}
+                <tr>
+                    <td><code>{{ game.gameId }}</code></td>
+                    <td><strong>{{ game.gameName }}</strong></td>
+                    <td>{{ game.addedAt.strftime('%d.%m.%Y %H:%M') if game.addedAt else '-' }}</td>
+                    <td>{{ game.addedBy or 'System' }}</td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteGame('{{ game.gameId }}')">
+                            🗑 Sil
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.6;">
+                        Henüz Denuvo oyunu eklenmemiş
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Yeni Denuvo Oyun Ekle</h3>
+            <button class="modal-close" onclick="document.getElementById('addModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Oyun ID (Steam App ID)</label>
+                <input type="text" id="gameId" placeholder="Örn: 1172470" required>
+            </div>
+            <div class="form-group">
+                <label>Oyun Adı</label>
+                <input type="text" id="gameName" placeholder="Örn: Resident Evil Village" required>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('addModal').classList.remove('active')">İptal</button>
+            <button class="btn btn-primary" onclick="addGame()">Ekle</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleSearch() {
+    const searchValue = document.getElementById('gameSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#gamesTableBody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+}
+
+async function addGame() {
+    const gameId = document.getElementById('gameId').value.trim();
+    const gameName = document.getElementById('gameName').value.trim();
+    
+    if (!gameId || !gameName) {
+        alert('Oyun ID ve isim gerekli!');
+        return;
+    }
+    
+    const formData = new FormData();
+    formData.append('gameId', gameId);
+    formData.append('gameName', gameName);
+    
+    try {
+        const res = await fetch('/denuvo-games/add', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Denuvo oyunu eklendi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası: ' + e);
+    }
+}
+
+async function deleteGame(gameId) {
+    if (!confirm('Bu Denuvo oyununu silmek istediğinizden emin misiniz?')) return;
+    
+    try {
+        const res = await fetch(`/denuvo-games/delete/${gameId}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Denuvo oyunu silindi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası');
+    }
+}
+</script>
+{% endblock %}

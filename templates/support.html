@@ -1,0 +1,548 @@
+{% extends "base.html" %}
+
+{% block title %}Destek Sistemi - Xcrover Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+.support-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.filter-btn {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.filter-btn.active {
+    background: linear-gradient(135deg, var(--purple) 0%, var(--blue) 100%);
+    color: white;
+}
+
+.support-ticket-card {
+    background: var(--bg-secondary);
+    border: 1px solid rgba(139, 92, 246, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 15px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.support-ticket-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--purple);
+    box-shadow: 0 8px 20px rgba(139, 92, 246, 0.2);
+}
+
+.support-ticket-card.pending {
+    border-left: 4px solid #fbbf24;
+}
+
+.support-ticket-card.accepted {
+    border-left: 4px solid var(--green);
+}
+
+.support-ticket-card.yanıtlandı,
+.support-ticket-card.closed {
+    border-left: 4px solid var(--text-secondary);
+    opacity: 0.7;
+}
+
+.ticket-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.ticket-card-header h4 {
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.ticket-status-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.ticket-status-badge.pending {
+    background: rgba(251, 191, 36, 0.2);
+    color: #fbbf24;
+}
+
+.ticket-status-badge.accepted,
+.ticket-status-badge.open {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--green);
+}
+
+.ticket-status-badge.closed {
+    background: rgba(107, 114, 128, 0.2);
+    color: var(--text-secondary);
+}
+
+.ticket-card-info {
+    display: flex;
+    gap: 20px;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+}
+
+.ticket-messages {
+    max-height: 400px;
+    overflow-y: auto;
+    margin: 20px 0;
+    padding: 15px;
+    background: var(--bg-primary);
+    border-radius: 8px;
+}
+
+.message-item {
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 10px;
+}
+
+.message-item.admin {
+    background: rgba(139, 92, 246, 0.1);
+    border-left: 3px solid var(--purple);
+}
+
+.message-item.user {
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 3px solid var(--blue);
+}
+
+.message-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.message-sender {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.message-time {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.message-body {
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+
+.reply-form {
+    margin-top: 20px;
+}
+
+.reply-form textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    background: var(--bg-primary);
+    border: 1px solid rgba(139, 92, 246, 0.3);
+    border-radius: 8px;
+    color: var(--text-primary);
+    resize: vertical;
+}
+
+.ticket-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>💬 Destek Talepleri</h1>
+</div>
+
+<div class="support-filters">
+    <button class="filter-btn active" onclick="filterTickets('all')">Tümü</button>
+    <button class="filter-btn" onclick="filterTickets('open')">Açık</button>
+    <button class="filter-btn" onclick="filterTickets('closed')">Kapalı</button>
+</div>
+
+<div class="search-section">
+    <input type="text" id="ticketSearch" placeholder="🔍 Destek talebi ara..." onkeyup="handleSearch()">
+</div>
+
+<div id="ticketsList"></div>
+
+<!-- Ticket Detail Modal -->
+<div id="ticketModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3 id="ticketSubject">Destek Talebi</h3>
+            <button class="modal-close" onclick="closeTicketModal()">&times;</button>
+        </div>
+        <div class="modal-body" id="ticketBody">
+            Yükleniyor...
+        </div>
+    </div>
+</div>
+
+<script>
+let currentFilter = 'all';
+
+function filterTickets(filter) {
+    currentFilter = filter;
+    
+    // Update active button
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    event.target.classList.add('active');
+    
+    // Filter tickets
+    const tickets = document.querySelectorAll('.support-ticket-card');
+    tickets.forEach(ticket => {
+        if (filter === 'all') {
+            ticket.style.display = 'block';
+        } else if (filter === 'open') {
+            ticket.style.display = (ticket.classList.contains('pending') || ticket.classList.contains('open') || ticket.classList.contains('accepted')) ? 'block' : 'none';
+        } else if (filter === 'closed') {
+            ticket.style.display = ticket.classList.contains('closed') ? 'block' : 'none';
+        }
+    });
+}
+
+function handleSearch() {
+    const searchValue = document.getElementById('ticketSearch').value.toLowerCase();
+    const tickets = document.querySelectorAll('.support-ticket-card');
+    
+    tickets.forEach(ticket => {
+        const text = ticket.textContent.toLowerCase();
+        const matchesSearch = text.includes(searchValue);
+        const matchesFilter = currentFilter === 'all' || 
+                            (currentFilter === 'open' && (ticket.classList.contains('pending') || ticket.classList.contains('open') || ticket.classList.contains('accepted'))) ||
+                            (currentFilter === 'closed' && ticket.classList.contains('closed'));
+        
+        ticket.style.display = (matchesSearch && matchesFilter) ? 'block' : 'none';
+    });
+}
+
+async function openTicketDetail(ticketId) {
+    console.log('=== openTicketDetail START ===');
+    console.log('Opening ticket:', ticketId);
+    
+    const modal = document.getElementById('ticketModal');
+    const body = document.getElementById('ticketBody');
+    const subject = document.getElementById('ticketSubject');
+    
+    modal.classList.add('active');
+    body.innerHTML = 'Yükleniyor...';
+    
+    try {
+    const res = await fetch(`/api/support/tickets/${ticketId}`);
+        const data = await res.json();
+        console.log('Ticket data received:', data);
+        
+        if (data.success) {
+            const ticket = data.ticket;
+            // API zaten normalize ediyor
+            subject.textContent = ticket.subject;
+            console.log('Ticket status:', ticket.status);
+            
+            let messagesHtml = '<div class="ticket-messages">';
+            if (ticket.messages && ticket.messages.length > 0) {
+                ticket.messages.forEach(msg => {
+                    const msgClass = msg.sender === 'admin' ? 'admin' : 'user';
+                    const msgTime = msg.timestamp ? formatDateTime(msg.timestamp) : '-';
+                    messagesHtml += `
+                        <div class="message-item ${msgClass}">
+                            <div class="message-header">
+                                <span class="message-sender">${msg.sender === 'admin' ? '👨‍💼 Admin' : '👤 ' + ticket.username}</span>
+                                <span class="message-time">${msgTime}</span>
+                            </div>
+                            <div class="message-body">${escapeHtml(msg.message)}</div>
+                        </div>
+                    `;
+                });
+            } else {
+                messagesHtml += '<p style="text-align:center;opacity:0.6;">Henüz mesaj yok</p>';
+            }
+            messagesHtml += '</div>';
+            
+            const isClosed = ticket.status === 'closed';
+            const isPending = ticket.status === 'pending';
+            
+            console.log('isClosed:', isClosed, 'isPending:', isPending);
+            
+            body.innerHTML = `
+                ${messagesHtml}
+                ${!isClosed ? `
+                <div class="reply-form">
+                    ${isPending ? `
+                        <div style="background: rgba(251, 191, 36, 0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #fbbf24;">
+                            <strong>⏳ Bu talep henüz kabul edilmedi</strong>
+                            <p style="margin: 10px 0 0 0; color: var(--text-secondary);">Yanıt göndermeden önce talebi kabul etmelisiniz.</p>
+                        </div>
+                        <div class="ticket-actions">
+                            <button type="button" class="btn btn-success js-accept-ticket" data-action="accept-ticket" data-ticket-id="${ticket._id}">✅ Talebi Kabul Et</button>
+                            <button type="button" class="btn btn-danger js-close-ticket" data-action="close-ticket" data-ticket-id="${ticket._id}">🔒 Talebi Kapat</button>
+                        </div>
+                    ` : `
+                        <label><strong>Yanıt Gönder:</strong></label>
+                        <textarea id="replyMessage" placeholder="Mesajınızı yazın..."></textarea>
+                        <div class="ticket-actions">
+                            <button type="button" class="btn btn-primary js-send-reply" data-action="send-reply" data-ticket-id="${ticket._id}">📤 Yanıt Gönder</button>
+                            <button type="button" class="btn btn-danger js-close-ticket" data-action="close-ticket" data-ticket-id="${ticket._id}">🔒 Talebi Kapat</button>
+                        </div>
+                    `}
+                </div>
+                ` : '<p style="text-align:center;padding:20px;color:var(--text-secondary);">Bu talep kapatılmış.</p>'}
+            `;
+            
+            console.log('HTML rendered. Attaching event listeners...');
+            
+            // Scroll to bottom of messages
+            const messagesDiv = document.querySelector('.ticket-messages');
+            if (messagesDiv) {
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            }
+            
+            // Event delegation: handle clicks centrally
+            if (!window.__supportDelegationBound) {
+                document.addEventListener('click', function(e) {
+                    const btn = e.target.closest('[data-action]');
+                    if (!btn) return;
+                    const action = btn.getAttribute('data-action');
+                    const ticketId = btn.getAttribute('data-ticket-id');
+                    if (!action || !ticketId) return;
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Delegated click:', action, 'ticketId:', ticketId);
+                    if (action === 'send-reply') return sendReply(ticketId);
+                    if (action === 'close-ticket') return closeTicket(ticketId);
+                    if (action === 'accept-ticket') return acceptTicket(ticketId);
+                });
+                window.__supportDelegationBound = true;
+                console.log('Global event delegation bound');
+            }
+        } else {
+            body.innerHTML = '<p style="color:var(--red);">Hata: ' + data.message + '</p>';
+        }
+    } catch (e) {
+        console.error('Exception in openTicketDetail:', e);
+        body.innerHTML = '<p style="color:var(--red);">Yükleme hatası</p>';
+    }
+    
+    console.log('=== openTicketDetail END ===');
+}
+
+function closeTicketModal() {
+    document.getElementById('ticketModal').classList.remove('active');
+}
+
+function handleTextareaKeydown(event, ticketId) {
+    // Ctrl+Enter ile mesaj gönder
+    if (event.ctrlKey && event.key === 'Enter') {
+        event.preventDefault();
+        console.log('Ctrl+Enter pressed, sending reply');
+        sendReply(ticketId);
+    }
+    // Prevent form submission on Enter alone
+    if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey) {
+        // Allow Shift+Enter for new line
+        return true;
+    }
+}
+
+async function acceptTicket(ticketId) {
+    if (!confirm('Bu destek talebini kabul etmek istediğinizden emin misiniz?')) return;
+    
+    try {
+    const res = await fetch(`/api/support/tickets/${ticketId}/accept`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('✅ Talep kabul edildi! Şimdi yanıt gönderebilirsiniz.');
+            openTicketDetail(ticketId); // Refresh modal
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası');
+    }
+}
+
+async function sendReply(ticketId) {
+    console.log('=== sendReply START ===');
+    console.log('Ticket ID:', ticketId);
+    
+    const messageInput = document.getElementById('replyMessage');
+    if (!messageInput) {
+        console.error('ERROR: replyMessage textarea not found!');
+        alert('Hata: Mesaj alanı bulunamadı!');
+        return;
+    }
+    
+    const message = messageInput.value.trim();
+    console.log('Message length:', message.length);
+    console.log('Message content:', message);
+    
+    if (!message) {
+        alert('Lütfen bir mesaj yazın!');
+        return;
+    }
+    
+    try {
+    const url = `/api/support/tickets/${ticketId}/reply`;
+        console.log('Sending POST to:', url);
+        
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ message: message })
+        });
+        
+        console.log('Response status:', res.status);
+        const data = await res.json();
+        console.log('Response data:', data);
+        
+        if (data.success) {
+            alert('✅ Yanıt gönderildi!');
+            openTicketDetail(ticketId);
+        } else {
+            alert('❌ Hata: ' + data.message);
+        }
+    } catch (e) {
+        console.error('EXCEPTION:', e);
+        alert('İstek hatası: ' + e.message);
+    }
+    console.log('=== sendReply END ===');
+}
+
+async function closeTicket(ticketId) {
+    console.log('=== closeTicket START ===');
+    console.log('Ticket ID:', ticketId);
+    
+    if (!confirm('Bu destek talebini kapatmak istediğinizden emin misiniz?')) {
+        console.log('User cancelled');
+        return;
+    }
+    
+    try {
+    const url = `/api/support/tickets/${ticketId}/close`;
+        console.log('Sending POST to:', url);
+        
+        const res = await fetch(url, { method: 'POST' });
+        console.log('Response status:', res.status);
+        
+        const data = await res.json();
+        console.log('Response data:', data);
+        
+        if (data.success) {
+            alert('🔒 Talep kapatıldı!');
+            location.reload();
+        } else {
+            alert('❌ Hata: ' + data.message);
+        }
+    } catch (e) {
+        console.error('EXCEPTION:', e);
+        alert('İstek hatası: ' + e.message);
+    }
+    console.log('=== closeTicket END ===');
+}
+
+function formatDateTime(dateStr) {
+    if (!dateStr) return '-';
+    const d = new Date(dateStr);
+    return d.toLocaleString('tr-TR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// List rendering via API
+async function loadTickets(filter = 'all', search = '') {
+    const listEl = document.getElementById('ticketsList');
+    listEl.innerHTML = '<div style="text-align:center; padding:30px; opacity:.7;">Yükleniyor...</div>';
+    try {
+        const params = new URLSearchParams();
+        if (filter && filter !== 'all') params.set('status', filter);
+        if (search) params.set('q', search);
+        const res = await fetch(`/api/support/tickets?${params.toString()}`);
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message || 'Liste alınamadı');
+        const tickets = data.tickets || [];
+        if (tickets.length === 0) {
+            listEl.innerHTML = '<div style="text-align: center; padding: 60px; opacity: 0.6;"><h3>Destek talebi bulunamadı</h3><p>Henüz hiç destek talebi oluşturulmamış.</p></div>';
+            return;
+        }
+        listEl.innerHTML = tickets.map(t => renderTicketCard(t)).join('');
+        // Attach click handlers via delegation
+        listEl.querySelectorAll('.support-ticket-card').forEach(card => {
+            card.addEventListener('click', () => openTicketDetail(card.dataset.id));
+        });
+    } catch (e) {
+        listEl.innerHTML = `<div style="color:var(--red); text-align:center; padding:20px;">Hata: ${escapeHtml(e.message || String(e))}</div>`;
+    }
+}
+
+function renderTicketCard(t) {
+    const status = t.status || 'pending';
+    const badgeText = status === 'pending' ? '⏳ Beklemede' : (status === 'accepted' ? '✅ Kabul Edildi' : (status === 'closed' ? '🔒 Kapalı' : status));
+    const created = t.createdAt ? formatDateTime(t.createdAt) : '-';
+    const msgCount = (t.messages && t.messages.length) ? t.messages.length : 0;
+    const username = t.username || 'Bilinmeyen';
+    return `
+    <div class="support-ticket-card ${status}" data-id="${t._id}">
+        <div class="ticket-card-header">
+            <h4>${escapeHtml(t.subject || '(Konu yok)')}</h4>
+            <span class="ticket-status-badge ${status}">${badgeText}</span>
+        </div>
+        <div class="ticket-card-info">
+            <span>👤 ${escapeHtml(username)}</span>
+            <span>💬 ${msgCount} mesaj</span>
+            <span>📅 ${created}</span>
+        </div>
+    </div>`;
+}
+
+// Filters and search
+document.addEventListener('DOMContentLoaded', () => {
+    // Initial load
+    loadTickets('all', '');
+});
+
+function filterTickets(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    const searchValue = document.getElementById('ticketSearch').value.trim();
+    loadTickets(filter, searchValue);
+}
+
+function handleSearch() {
+    const searchValue = document.getElementById('ticketSearch').value.trim();
+    loadTickets(currentFilter, searchValue);
+}
+</script>
+{% endblock %}

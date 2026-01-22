@@ -1,0 +1,611 @@
+{% extends "base.html" %}
+
+{% block title %}Loglar - Xcrover Admin{% endblock %}
+
+{% block extra_css %}
+<style>
+    .logs-container {
+        background: #1a1a2e;
+        border-radius: 12px;
+        padding: 30px;
+        color: #e0e0e0;
+    }
+    
+    .logs-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .logs-header h1 {
+        color: #00d4ff;
+        font-size: 32px;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .filters {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+    
+    .filter-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+    }
+    
+    .filter-group label {
+        color: #aaa;
+        font-size: 13px;
+        font-weight: 500;
+    }
+    
+    .filter-group select,
+    .filter-group input {
+        background: #16213e;
+        border: 1px solid #2d3e5f;
+        border-radius: 6px;
+        padding: 10px 15px;
+        color: #e0e0e0;
+        font-size: 14px;
+        outline: none;
+        transition: all 0.3s;
+    }
+    
+    .filter-group select:focus,
+    .filter-group input:focus {
+        border-color: #00d4ff;
+        box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+    }
+    
+    .logs-table-container {
+        background: #16213e;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+    
+    .logs-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    
+    .logs-table thead {
+        background: linear-gradient(135deg, #0f3460, #16213e);
+    }
+    
+    .logs-table th {
+        padding: 15px 20px;
+        text-align: left;
+        color: #00d4ff;
+        font-weight: 600;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-bottom: 2px solid #2d3e5f;
+    }
+    
+    .logs-table td {
+        padding: 15px 20px;
+        border-bottom: 1px solid #2d3e5f;
+        color: #e0e0e0;
+        font-size: 14px;
+    }
+    
+    .logs-table tbody tr {
+        transition: all 0.3s;
+    }
+    
+    .logs-table tbody tr:hover {
+        background: rgba(0, 212, 255, 0.05);
+        transform: translateX(3px);
+    }
+    
+    .log-type {
+        display: inline-block;
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .log-type.game_add { background: rgba(0, 255, 136, 0.2); color: #00ff88; }
+    .log-type.game_add_failed { background: rgba(255, 107, 107, 0.2); color: #ff6b6b; }
+    .log-type.bypass_download { background: rgba(0, 212, 255, 0.2); color: #00d4ff; }
+    .log-type.license_check { background: rgba(255, 184, 0, 0.2); color: #ffb800; }
+    .log-type.error { background: rgba(255, 71, 87, 0.2); color: #ff4757; }
+    .log-type.login { background: rgba(149, 117, 205, 0.2); color: #9575cd; }
+    .log-type.update { background: rgba(103, 178, 255, 0.2); color: #67b2ff; }
+    
+    .log-details {
+        max-width: 400px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #aaa;
+        font-size: 13px;
+    }
+    
+    .log-timestamp {
+        color: #888;
+        font-size: 13px;
+        white-space: nowrap;
+    }
+    
+    .log-user {
+        color: #00d4ff;
+        font-weight: 500;
+    }
+    
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: #888;
+    }
+    
+    .empty-state i {
+        font-size: 64px;
+        margin-bottom: 20px;
+        opacity: 0.5;
+    }
+    
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 30px;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #16213e, #0f3460);
+        border-radius: 8px;
+        padding: 20px;
+        border: 1px solid #2d3e5f;
+        transition: all 0.3s;
+    }
+    
+    .stat-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 25px rgba(0, 212, 255, 0.2);
+        border-color: #00d4ff;
+    }
+    
+    .stat-card .stat-value {
+        font-size: 32px;
+        font-weight: bold;
+        color: #00d4ff;
+        margin-bottom: 5px;
+    }
+    
+    .stat-card .stat-label {
+        color: #aaa;
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    
+    .refresh-btn {
+        background: linear-gradient(135deg, #00d4ff, #0099cc);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+        transition: all 0.3s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .refresh-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(0, 212, 255, 0.4);
+    }
+    
+    .refresh-btn i {
+        font-size: 16px;
+    }
+    
+    .pagination {
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+        margin-top: 30px;
+    }
+    
+    .page-btn {
+        background: #16213e;
+        border: 1px solid #2d3e5f;
+        color: #e0e0e0;
+        padding: 10px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.3s;
+        font-size: 14px;
+        font-weight: 500;
+    }
+    
+    .page-btn:hover {
+        background: #00d4ff;
+        color: #1a1a2e;
+        border-color: #00d4ff;
+    }
+    
+    .page-btn.active {
+        background: #00d4ff;
+        color: #1a1a2e;
+        border-color: #00d4ff;
+    }
+    
+    .page-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+    
+    .log-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #00d4ff;
+    }
+    
+    .select-all-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: #00d4ff;
+    }
+    
+    .log-row.selected {
+        background: rgba(0, 212, 255, 0.15);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="logs-container">
+    <div class="logs-header">
+        <h1>📋 Sistem Logları</h1>
+        <div style="display: flex; gap: 10px;">
+            <button class="refresh-btn" onclick="loadLogs()">
+                <i>🔄</i>
+                Yenile
+            </button>
+            <button class="refresh-btn" style="background: linear-gradient(135deg, #ff6b6b, #ee5a6f);" onclick="deleteSelectedLogs()" id="delete-selected-btn" disabled>
+                <i>🗑️</i>
+                Seçilileri Sil
+            </button>
+            <button class="refresh-btn" style="background: linear-gradient(135deg, #ff4757, #c23616);" onclick="clearAllLogs()">
+                <i>💣</i>
+                Tümünü Temizle
+            </button>
+        </div>
+    </div>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <div class="stat-value" id="total-logs">0</div>
+            <div class="stat-label">Toplam Log</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="today-logs">0</div>
+            <div class="stat-label">Bugünkü Loglar</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="error-logs">0</div>
+            <div class="stat-label">Hatalar</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="game-adds">0</div>
+            <div class="stat-label">Oyun Eklemeleri</div>
+        </div>
+    </div>
+    
+    <div class="filters">
+        <div class="filter-group">
+            <label>Log Tipi</label>
+            <select id="filter-type" onchange="loadLogs()">
+                <option value="">Tümü</option>
+                <option value="game_add">Oyun Ekleme</option>
+                <option value="game_add_failed">Başarısız Ekleme</option>
+                <option value="bypass_download">Bypass İndirme</option>
+                <option value="license_check">Lisans Kontrolü</option>
+                <option value="error">Hata</option>
+                <option value="login">Giriş</option>
+                <option value="update">Güncelleme</option>
+            </select>
+        </div>
+        
+        <div class="filter-group">
+            <label>Kullanıcı</label>
+            <input type="text" id="filter-user" placeholder="Kullanıcı adı ara..." onkeyup="loadLogs()">
+        </div>
+        
+        <div class="filter-group">
+            <label>Tarih (Başlangıç)</label>
+            <input type="date" id="filter-date-from" onchange="loadLogs()">
+        </div>
+        
+        <div class="filter-group">
+            <label>Tarih (Bitiş)</label>
+            <input type="date" id="filter-date-to" onchange="loadLogs()">
+        </div>
+    </div>
+    
+    <div class="logs-table-container">
+        <table class="logs-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" class="select-all-checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+                    <th>Tarih/Saat</th>
+                    <th>Kullanıcı</th>
+                    <th>Log Tipi</th>
+                    <th>Detaylar</th>
+                </tr>
+            </thead>
+            <tbody id="logs-tbody">
+                <tr>
+                    <td colspan="5" class="empty-state">
+                        <i>⏳</i>
+                        <p>Loglar yükleniyor...</p>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="pagination" id="pagination"></div>
+</div>
+
+<script>
+let currentPage = 1;
+const logsPerPage = 50;
+
+async function loadLogs() {
+    const type = document.getElementById('filter-type').value;
+    const user = document.getElementById('filter-user').value;
+    const dateFrom = document.getElementById('filter-date-from').value;
+    const dateTo = document.getElementById('filter-date-to').value;
+    
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    if (user) params.append('user', user);
+    if (dateFrom) params.append('dateFrom', dateFrom);
+    if (dateTo) params.append('dateTo', dateTo);
+    params.append('page', currentPage);
+    params.append('limit', logsPerPage);
+    
+    try {
+        const response = await fetch(`/api/logs?${params.toString()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            displayLogs(data.logs);
+            updateStats(data.stats);
+            updatePagination(data.totalPages);
+        } else {
+            showError('Loglar yüklenirken hata oluştu');
+        }
+    } catch (error) {
+        console.error('Log yükleme hatası:', error);
+        showError('Bağlantı hatası');
+    }
+}
+
+function displayLogs(logs) {
+    const tbody = document.getElementById('logs-tbody');
+    
+    if (logs.length === 0) {
+        tbody.innerHTML = `
+            <tr>
+                <td colspan="5" class="empty-state">
+                    <i>📭</i>
+                    <p>Henüz log kaydı yok</p>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    tbody.innerHTML = logs.map(log => `
+        <tr class="log-row" data-log-id="${log._id}">
+            <td><input type="checkbox" class="log-checkbox" onchange="updateDeleteButton()"></td>
+            <td class="log-timestamp">${formatDateTime(log.timestamp)}</td>
+            <td class="log-user">${log.username || 'Sistem'}</td>
+            <td><span class="log-type ${log.logType}">${getLogTypeLabel(log.logType)}</span></td>
+            <td class="log-details" title="${escapeHtml(log.details)}">${escapeHtml(log.details)}</td>
+        </tr>
+    `).join('');
+    
+    updateDeleteButton();
+}
+
+function updateStats(stats) {
+    document.getElementById('total-logs').textContent = stats.total || 0;
+    document.getElementById('today-logs').textContent = stats.today || 0;
+    document.getElementById('error-logs').textContent = stats.errors || 0;
+    document.getElementById('game-adds').textContent = stats.gameAdds || 0;
+}
+
+function updatePagination(totalPages) {
+    const pagination = document.getElementById('pagination');
+    
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Previous button
+    html += `<button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹ Önceki</button>`;
+    
+    // Page numbers
+    for (let i = 1; i <= totalPages; i++) {
+        if (i === 1 || i === totalPages || (i >= currentPage - 2 && i <= currentPage + 2)) {
+            html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+        } else if (i === currentPage - 3 || i === currentPage + 3) {
+            html += `<span class="page-btn" disabled>...</span>`;
+        }
+    }
+    
+    // Next button
+    html += `<button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>Sonraki ›</button>`;
+    
+    pagination.innerHTML = html;
+}
+
+function changePage(page) {
+    currentPage = page;
+    loadLogs();
+}
+
+function getLogTypeLabel(type) {
+    const labels = {
+        'game_add': 'Oyun Eklendi',
+        'game_add_failed': 'Ekleme Başarısız',
+        'bypass_download': 'Bypass İndirildi',
+        'license_check': 'Lisans Kontrolü',
+        'error': 'Hata',
+        'login': 'Giriş',
+        'update': 'Güncelleme'
+    };
+    return labels[type] || type;
+}
+
+function formatDateTime(timestamp) {
+    const date = new Date(timestamp);
+    return date.toLocaleString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showError(message) {
+    const tbody = document.getElementById('logs-tbody');
+    tbody.innerHTML = `
+        <tr>
+            <td colspan="5" class="empty-state">
+                <i>❌</i>
+                <p>${message}</p>
+            </td>
+        </tr>
+    `;
+}
+
+function toggleSelectAll() {
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.log-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+        if (selectAll.checked) {
+            cb.closest('.log-row').classList.add('selected');
+        } else {
+            cb.closest('.log-row').classList.remove('selected');
+        }
+    });
+    updateDeleteButton();
+}
+
+function updateDeleteButton() {
+    const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+    const deleteBtn = document.getElementById('delete-selected-btn');
+    deleteBtn.disabled = checkboxes.length === 0;
+    
+    // Update selected row styling
+    document.querySelectorAll('.log-row').forEach(row => {
+        const checkbox = row.querySelector('.log-checkbox');
+        if (checkbox.checked) {
+            row.classList.add('selected');
+        } else {
+            row.classList.remove('selected');
+        }
+    });
+}
+
+async function deleteSelectedLogs() {
+    const checkboxes = document.querySelectorAll('.log-checkbox:checked');
+    if (checkboxes.length === 0) return;
+    
+    if (!confirm(`${checkboxes.length} log kaydını silmek istediğinizden emin misiniz?`)) {
+        return;
+    }
+    
+    const logIds = Array.from(checkboxes).map(cb => cb.closest('.log-row').dataset.logId);
+    
+    try {
+        const response = await fetch('/api/logs/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ logIds })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`${data.deletedCount} log kaydı silindi`);
+            loadLogs();
+        } else {
+            alert('Silme işlemi başarısız: ' + (data.message || 'Bilinmeyen hata'));
+        }
+    } catch (error) {
+        console.error('Log silme hatası:', error);
+        alert('Bağlantı hatası');
+    }
+}
+
+async function clearAllLogs() {
+    if (!confirm('TÜM LOG KAYITLARINI silmek istediğinizden emin misiniz?\nBu işlem geri alınamaz!')) {
+        return;
+    }
+    
+    if (!confirm('SON UYARI: Tüm loglar kalıcı olarak silinecek. Devam etmek istiyor musunuz?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/logs/clear', {
+            method: 'POST'
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert(`${data.deletedCount} log kaydı temizlendi`);
+            loadLogs();
+        } else {
+            alert('Temizleme işlemi başarısız: ' + (data.message || 'Bilinmeyen hata'));
+        }
+    } catch (error) {
+        console.error('Log temizleme hatası:', error);
+        alert('Bağlantı hatası');
+    }
+}
+
+// Initial load
+loadLogs();
+
+// Auto-refresh every 30 seconds
+setInterval(loadLogs, 30000);
+</script>
+{% endblock %}

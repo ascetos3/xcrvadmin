@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Oyun Yonetimi{% endblock %}
+
+{% block content %}
+<div class="content-section">
+    <div class="section-header">
+        <h2 class="section-title">Premium Oyunlar</h2>
+        <button class="btn btn-primary" onclick="openAddModal('premium')">+ Oyun Ekle</button>
+    </div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Oyun Adi</th>
+                <th>App ID</th>
+                <th>Ekleyen</th>
+                <th>Islemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for game in premium_games %}
+            <tr>
+                <td>{{ game.name }}</td>
+                <td><code>{{ game.appId }}</code></td>
+                <td>{{ game.addedBy or 'System' }}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteGame('premium', '{{ game.appId }}')">Sil</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="text-align: center;">Oyun yok</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div class="content-section">
+    <div class="section-header">
+        <h2 class="section-title">Denuvo Oyunlar</h2>
+        <button class="btn btn-primary" onclick="openAddModal('denuvo')">+ Oyun Ekle</button>
+    </div>
+    
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Oyun Adi</th>
+                <th>App ID</th>
+                <th>Ekleyen</th>
+                <th>Islemler</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for game in denuvo_games %}
+            <tr>
+                <td>{{ game.name }}</td>
+                <td><code>{{ game.appId }}</code></td>
+                <td>{{ game.addedBy or 'System' }}</td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteGame('denuvo', '{{ game.appId }}')">Sil</button>
+                </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4" style="text-align: center;">Oyun yok</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<div id="addModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3 class="modal-title">Yeni Oyun Ekle</h3>
+            <button class="modal-close" onclick="closeAddModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addForm">
+                <input type="hidden" name="gameType" id="gameType">
+                <div class="form-group">
+                    <label class="form-label">Oyun Adi</label>
+                    <input type="text" name="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">App ID</label>
+                    <input type="text" name="appId" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Gorsel URL</label>
+                    <input type="text" name="imageUrl" class="form-control">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Aciklama</label>
+                    <textarea name="description" class="form-textarea"></textarea>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddModal()">Iptal</button>
+            <button class="btn btn-primary" onclick="submitAdd()">Ekle</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function openAddModal(type) {
+    document.getElementById('gameType').value = type;
+    document.getElementById('addModal').classList.add('active');
+}
+
+function closeAddModal() {
+    document.getElementById('addModal').classList.remove('active');
+}
+
+async function submitAdd() {
+    const form = document.getElementById('addForm');
+    const formData = new FormData(form);
+    
+    try {
+        const res = await fetch('/games/add', { method: 'POST', body: formData });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Oyun eklendi');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+
+async function deleteGame(type, appId) {
+    if (!confirm('Silmek istediginizden emin misiniz?')) return;
+    
+    try {
+        const res = await fetch(`/games/delete/${type}/${appId}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Hata');
+        }
+    } catch (e) {
+        alert('Istek hatasi');
+    }
+}
+</script>
+{% endblock %}

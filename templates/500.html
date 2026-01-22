@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="empty-state">
+    <div class="empty-state-icon">⚠️</div>
+    <h3>500 - Sunucu Hatasi</h3>
+    <p>Bir hata olustu. Lutfen daha sonra tekrar deneyin.</p>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-primary">Ana Sayfaya Don</a>
+</div>
+{% endblock %}

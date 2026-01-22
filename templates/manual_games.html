@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+
+{% block title %}Manuel Oyunlar - Xcrover Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📦 Manuel Oyunlar</h1>
+</div>
+
+<div class="card" style="margin-bottom: 20px;">
+    <h3>Yeni Manuel Oyun Yükle</h3>
+    <form id="uploadForm" onsubmit="addGame(event)">
+        <div class="form-group">
+            <label>Oyun ID (AppId)</label>
+            <input type="text" id="appId" name="appId" placeholder="Örn: 730" required>
+        </div>
+        <div class="form-group">
+            <label>Oyun Adı</label>
+            <input type="text" id="gameName" name="gameName" placeholder="Örn: Counter-Strike 2" required>
+        </div>
+        <div class="form-group">
+            <label>ZIP Dosyası</label>
+            <input type="file" id="gameFile" name="gameFile" accept=".zip" required>
+            <small style="opacity: 0.7;">Sadece ZIP dosyaları yüklenebilir</small>
+        </div>
+        <button type="submit" class="btn btn-primary" id="uploadBtn">
+            📤 Yükle
+        </button>
+    </form>
+</div>
+
+<div class="search-section">
+    <input type="text" id="gameSearch" placeholder="🔍 Oyun ara..." onkeyup="handleSearch()">
+</div>
+
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Oyun ID</th>
+                <th>Oyun Adı</th>
+                <th>Dosya</th>
+                <th>Boyut</th>
+                <th>Eklenme Tarihi</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody id="gamesTableBody">
+            {% if games %}
+                {% for game in games %}
+                <tr>
+                    <td><code>{{ game.appId }}</code></td>
+                    <td><strong>{{ game.gameName }}</strong></td>
+                    <td><small>{{ game.fileName or '-' }}</small></td>
+                    <td>{{ (game.fileSize / 1024 / 1024)|round(2) if game.fileSize else 0 }} MB</td>
+                    <td>{{ game.addedAt.strftime('%d.%m.%Y %H:%M') if game.addedAt else '-' }}</td>
+                    <td style="display: flex; gap: 6px;">
+                        <a href="/manual-games/download/{{ game.appId }}" class="btn btn-sm btn-info" title="İndir">
+                            ⬇️ İndir
+                        </a>
+                        <button class="btn btn-sm btn-danger" onclick="deleteGame('{{ game.appId }}')">
+                            🗑 Sil
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="6" style="text-align: center; padding: 20px; opacity: 0.6;">
+                        Henüz manuel oyun yüklenmemiş
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+function handleSearch() {
+    const searchValue = document.getElementById('gameSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#gamesTableBody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+}
+
+async function addGame(event) {
+    event.preventDefault();
+    
+    const appId = document.getElementById('appId').value.trim();
+    const gameName = document.getElementById('gameName').value.trim();
+    const fileInput = document.getElementById('gameFile');
+    const file = fileInput.files[0];
+    const uploadBtn = document.getElementById('uploadBtn');
+    
+    if (!appId || !gameName || !file) {
+        alert('Lütfen tüm alanları doldurun!');
+        return;
+    }
+    
+    if (!file.name.endsWith('.zip')) {
+        alert('Sadece ZIP dosyaları yüklenebilir!');
+        return;
+    }
+    
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = '⏳ Yükleniyor...';
+    
+    const formData = new FormData();
+    formData.append('appId', appId);
+    formData.append('gameName', gameName);
+    formData.append('gameFile', file);
+    
+    try {
+        const res = await fetch('/manual-games/add', { 
+            method: 'POST', 
+            body: formData 
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Manuel oyun başarıyla yüklendi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası: ' + e);
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = '📤 Yükle';
+    }
+}
+
+async function deleteGame(appId) {
+    if (!confirm('Bu manuel oyunu silmek istediğinizden emin misiniz?\n\nZIP dosyası da silinecektir.')) return;
+    
+    try {
+        const res = await fetch(`/manual-games/delete/${appId}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Manuel oyun silindi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası');
+    }
+}
+</script>
+{% endblock %}

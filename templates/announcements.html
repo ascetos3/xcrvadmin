@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block title %}Duyurular - Xcrover Admin{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📢 Duyurular</h1>
+    <button class="btn btn-primary" onclick="document.getElementById('addModal').classList.add('active')">
+        ➕ Yeni Duyuru Oluştur
+    </button>
+</div>
+
+<div class="search-section">
+    <input type="text" id="announcementSearch" placeholder="🔍 Duyuru ara..." onkeyup="handleSearch()">
+</div>
+
+<div class="card">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Başlık</th>
+                <th>Durum</th>
+                <th>Oluşturma Tarihi</th>
+                <th>Oluşturan</th>
+                <th>İşlemler</th>
+            </tr>
+        </thead>
+        <tbody id="announcementsTableBody">
+            {% if announcements %}
+                {% for announcement in announcements %}
+                <tr>
+                    <td><strong>{{ announcement.title }}</strong></td>
+                    <td>
+                        {% if announcement.isActive %}
+                            <span class="badge badge-success">✅ Aktif</span>
+                        {% else %}
+                            <span class="badge badge-secondary">⏸️ Pasif</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ announcement.createdAt.strftime('%d.%m.%Y %H:%M') if announcement.createdAt else '-' }}</td>
+                    <td>{{ announcement.createdBy or 'System' }}</td>
+                    <td style="display: flex; gap: 6px;">
+                        {% if announcement.isActive %}
+                            <button class="btn btn-sm btn-warning" onclick="toggleAnnouncement('{{ announcement._id }}')">
+                                ⏸️ Pasif Yap
+                            </button>
+                        {% else %}
+                            <button class="btn btn-sm btn-success" onclick="toggleAnnouncement('{{ announcement._id }}')">
+                                ✅ Aktif Yap
+                            </button>
+                        {% endif %}
+                        <button class="btn btn-sm btn-danger" onclick="deleteAnnouncement('{{ announcement._id }}')">
+                            🗑 Sil
+                        </button>
+                    </td>
+                </tr>
+                {% endfor %}
+            {% else %}
+                <tr>
+                    <td colspan="5" style="text-align: center; padding: 20px; opacity: 0.6;">
+                        Henüz duyuru oluşturulmamış
+                    </td>
+                </tr>
+            {% endif %}
+        </tbody>
+    </table>
+</div>
+
+<!-- Add Modal -->
+<div id="addModal" class="modal">
+    <div class="modal-content modal-large">
+        <div class="modal-header">
+            <h3>Yeni Duyuru Oluştur</h3>
+            <button class="modal-close" onclick="document.getElementById('addModal').classList.remove('active')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>Başlık</label>
+                <input type="text" id="title" placeholder="Duyuru başlığı..." required>
+            </div>
+            <div class="form-group">
+                <label>İçerik</label>
+                <textarea id="body" rows="6" placeholder="Duyuru içeriği..." required></textarea>
+            </div>
+            <div class="form-group">
+                <label>Görsel URL (Opsiyonel)</label>
+                <input type="url" id="imageUrl" placeholder="https://...">
+            </div>
+            <div class="form-group">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                    <input type="checkbox" id="isActive" checked>
+                    Hemen aktif et
+                </label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="document.getElementById('addModal').classList.remove('active')">İptal</button>
+            <button class="btn btn-primary" onclick="addAnnouncement()">Oluştur</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function handleSearch() {
+    const searchValue = document.getElementById('announcementSearch').value.toLowerCase();
+    const rows = document.querySelectorAll('#announcementsTableBody tr');
+    
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(searchValue) ? '' : 'none';
+    });
+}
+
+async function addAnnouncement() {
+    const title = document.getElementById('title').value.trim();
+    const body = document.getElementById('body').value.trim();
+    const imageUrl = document.getElementById('imageUrl').value.trim();
+    const isActive = document.getElementById('isActive').checked;
+    
+    if (!title || !body) {
+        alert('Başlık ve içerik gerekli!');
+        return;
+    }
+    
+    try {
+        const res = await fetch('/announcements/add', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                title: title,
+                body: body,
+                imageUrl: imageUrl,
+                isActive: isActive
+            })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Duyuru oluşturuldu!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası: ' + e);
+    }
+}
+
+async function toggleAnnouncement(announcementId) {
+    console.log('[Toggle] Announcement ID:', announcementId);
+    
+    try {
+        const res = await fetch(`/announcements/toggle/${announcementId}`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        console.log('[Toggle] Response status:', res.status);
+        const data = await res.json();
+        console.log('[Toggle] Response data:', data);
+        
+        if (data.success) {
+            alert('Durum güncellendi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        console.error('[Toggle] Error:', e);
+        alert('İstek hatası: ' + e.message);
+    }
+}
+
+async function deleteAnnouncement(announcementId) {
+    if (!confirm('Bu duyuruyu silmek istediğinizden emin misiniz?')) return;
+    
+    try {
+        const res = await fetch(`/announcements/delete/${announcementId}`, { method: 'POST' });
+        const data = await res.json();
+        
+        if (data.success) {
+            alert('Duyuru silindi!');
+            location.reload();
+        } else {
+            alert('Hata: ' + data.message);
+        }
+    } catch (e) {
+        alert('İstek hatası');
+    }
+}
+</script>
+{% endblock %}
